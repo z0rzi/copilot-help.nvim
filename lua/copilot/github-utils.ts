@@ -1,4 +1,5 @@
 import Utils from "./utils";
+import tty from "tty";
 
 type AuthResponse = {
   device_code: string;
@@ -16,7 +17,7 @@ const LOGIN_HEADERS = {
   "user-agent": "GithubCopilot/1.133.0",
 };
 
-async function checkGithubAuth(deviceCode: string): Promise<string> {
+export async function checkGithubAuth(deviceCode: string): Promise<string> {
   const url = "https://github.com/login/oauth/access_token";
 
   const accessTokenResponse = await fetch(url, {
@@ -87,6 +88,16 @@ async function githubRequestAuth(): Promise<AuthResponse> {
 
 export async function githubAuthenticate() {
   const req = await githubRequestAuth();
+
+  if (!tty.isatty(process.stdout.fd)) {
+    console.log("@@@");
+    console.log(req.verification_uri);
+    console.log(req.user_code);
+    console.log(req.device_code);
+
+    process.exit(1);
+  }
+
   console.log(
     "Please visit",
     req["verification_uri"],
