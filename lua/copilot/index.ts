@@ -26,7 +26,7 @@ switch (mode) {
     let messageLines = [] as string[];
     let speaker = "system" as "system" | "user";
     for (const line of lines) {
-      if (line.startsWith("===") && line.endsWith("===")) {
+      if (line.startsWith("# ===") && line.endsWith("===")) {
         if (messageLines.length > 0) {
           copilot.addMessageToConversation(messageLines.join("\n"), speaker);
           messageLines = [];

@@ -11,10 +11,13 @@ M.config = {
     selected_to_chat = '<LEADER>m',
     run_macro = '<LEADER>k',
     edit_macro = '<LEADER>K',
+    next_hunk = ']]',
+    prev_hunk = '[[',
+    reset_chat = '<C-d>'
   },
 
   files = {
-    chat_file = os.getenv("HOME") .. '/.config/ai-chat/chat.txt',
+    chat_file = os.getenv("HOME") .. '/.config/ai-chat/chat.md',
     macros_dir = os.getenv("HOME") .. '/.config/ai-chat/macros/'
   }
 }
@@ -48,7 +51,7 @@ local function run_copilot_script(args)
     M.gh_device_code = device_code
 
     print("You need to connect to GitHub")
-    result = "Please visit " .. verification_uri .. " and enter " .. user_code .. "\n\nOnce this is done, ask me something!"
+    result = "Please visit " .. verification_uri .. " and enter " .. user_code .. "\n\nOnce this is done, ask me something!\n"
   end
 
   return result
@@ -98,18 +101,25 @@ function M.open_chat()
   api.nvim_buf_set_option(buf, 'swapfile', false)
   api.nvim_buf_set_option(buf, 'filetype', 'ai-chat')
 
+  -- applying markdown coloring
+  api.nvim_command("runtime! syntax/markdown.vim")
+
+
   api.nvim_command("normal! G")
 end
 
 function M.open_macro(macro_name)
   M.focus_window()
-  api.nvim_command('edit ' .. M.config.files.macros_dir .. macro_name .. '.txt')
+  api.nvim_command('edit ' .. M.config.files.macros_dir .. macro_name .. '.md')
 
   -- Setting buffer options
   local buf = api.nvim_get_current_buf()
   api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
   api.nvim_buf_set_option(buf, 'swapfile', false)
   api.nvim_buf_set_option(buf, 'filetype', 'ai-chat')
+
+  -- applying markdown coloring
+  api.nvim_command("runtime! syntax/markdown.vim")
 end
 
 function M.close_window()
@@ -141,6 +151,25 @@ function M.focus_window()
   api.nvim_set_current_win(M.window)
 end
 
+local function find_code_block_in_text(lines)
+  -- Given a list of lines, returns the start and end line of the code block
+  local start_line = nil
+  local end_line = nil
+
+  for i, line in ipairs(lines) do
+    if string.sub(line, 1, 3) == "```" then
+      if start_line == nil then
+        start_line = i + 1
+      else
+        end_line = i - 1
+        break
+      end
+    end
+  end
+
+  return start_line, end_line
+end
+
 function M.send_message()
   api.nvim_command("silent!w")
 
@@ -149,8 +178,13 @@ function M.send_message()
   local lines = vim.split(result, "\n")
 
   table.insert(lines, 1, "")
-  table.insert(lines, 1, "============= AI =============")
+  table.insert(lines, 1, "# ============= AI =============")
   table.insert(lines, 1, "")
+
+  local code_start, code_end = find_code_block_in_text(lines)
+  local lnum = vim.fn.line("$")
+  code_start = code_start and code_start + lnum or nil
+  code_end = code_end and code_end + lnum or nil
 
   -- Putting the result at the end of the buffer
   local buf = api.nvim_get_current_buf()
@@ -160,24 +194,29 @@ function M.send_message()
   local line_count = api.nvim_buf_line_count(buf)
   api.nvim_buf_set_lines(buf, -1, line_count, false, {
     "",
-    "============ USER ===========",
+    "# ============ USER ===========",
     "",
     ""
   })
 
-  -- setting cursor at the end of the buffer
+  if code_start ~= nil then
+    -- Copying the code block content
+    local code_length = code_end - code_start
+    api.nvim_win_set_cursor(0, { code_start, 0 })
+    api.nvim_command("normal! y" .. code_length .. "j")
+  end
   api.nvim_command("normal! G")
   api.nvim_command("silent!w")
 end
 
-function M.ask(start_line, end_line)
+function M.selection_to_chat(start_line, end_line)
   local selectedLines = vim.fn.getline(start_line, end_line)
   local filetype = vim.bo.filetype
 
   -- inserting lines at the start of the code snippet
   table.insert(selectedLines, 1, "```" .. filetype)
   table.insert(selectedLines, 1, "")
-  table.insert(selectedLines, 1, "============= CODE ============")
+  table.insert(selectedLines, 1, "# ============= CODE ============")
   table.insert(selectedLines, 1, "")
 
   -- inserting lines at the end of the code snippet
@@ -186,15 +225,18 @@ function M.ask(start_line, end_line)
   M.focus_window()
   M.open_chat()
 
-  -- Putting the selected lines at the end of the buffer
+  -- removing the old chat
   local buf = api.nvim_get_current_buf()
+  api.nvim_buf_set_lines(buf, 0, -1, false, {''})
+
+  -- Putting the selected lines at the end of the buffer
   local line_count = api.nvim_buf_line_count(buf)
   api.nvim_buf_set_lines(buf, line_count, line_count, false, selectedLines)
 
   line_count = api.nvim_buf_line_count(buf)
   api.nvim_buf_set_lines(buf, -1, line_count, false, {
     "",
-    "============ USER ============",
+    "# ============ USER ============",
     "",
     ""
   })
@@ -210,7 +252,7 @@ end
 function M.resetChat()
   local buf = api.nvim_get_current_buf()
   api.nvim_buf_set_lines(buf, 0, -1, false, {
-    "============ USER ============",
+    "# ============ USER ============",
     "",
     ""
   })
@@ -228,7 +270,7 @@ end
 function M.run_macro(start_line, end_line)
   local macro_name = vim.fn.nr2char(vim.fn.getchar())
 
-  local file_path = M.config.files.macros_dir .. macro_name .. '.txt'
+  local file_path = M.config.files.macros_dir .. macro_name .. '.md'
 
   local code_file_path = M.config.files.macros_dir .. 'code.txt'
 
@@ -263,11 +305,22 @@ function M.run_macro(start_line, end_line)
   api.nvim_buf_set_lines(0, current_line - 1, current_line - 1, false, lines)
 end
 
+function M.next_hunk()
+  -- searching for the next '^======' using vim native search
+  vim.fn.search('^======', 'W')
+end
+function M.prev_hunk()
+  -- searching for the next '^======' using vim native search
+  vim.fn.search('^======', 'bW')
+end
+
 function M.setup(user_opts)
+  M.config = vim.tbl_extend("force", M.config, user_opts or {})
+
   -- creating directory if not exists
   os.execute("mkdir -p " .. M.config.files.macros_dir)
 
-  vim.api.nvim_command("command! AiOpen lua require('ai-chat').focus_window()")
+  api.nvim_command("command! AiOpen lua require('ai-chat').focus_window()")
 
   local opts = { noremap = true }
 
@@ -277,17 +330,22 @@ function M.setup(user_opts)
   api.nvim_set_keymap("n", M.config.mappings.run_macro, "V:RunMacro<CR>", opts)
   api.nvim_set_keymap("n", M.config.mappings.edit_macro, ":AiMacroEdit<CR>", opts)
 
-  api.nvim_command("command! -range AiAsk lua require('ai-chat').ask(<line1>, <line2>)")
+  api.nvim_command("command! -range AiAsk lua require('ai-chat').selection_to_chat(<line1>, <line2>)")
   api.nvim_command("command! -range RunMacro lua require('ai-chat').run_macro(<line1>, <line2>)")
   api.nvim_command("command! -range AiMacroEdit lua require('ai-chat').edit_macro()")
 
   -- setting maps specific to the ai-chat buffer using autocmd
-  vim.api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> <C-a> <CMD>lua require('ai-chat').send_message()<CR>")
-  vim.api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> <C-a> <CMD>lua require('ai-chat').send_message()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
     M.config.mappings.focus_window .. " <CMD>lua require('ai-chat').close_window()<CR>")
-  vim.api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> <C-d> <CMD>lua require('ai-chat').resetChat()<CR>")
-  vim.api.nvim_command("autocmd FileType ai-chat cnoreabbrev <buffer> x <CMD>lua require('ai-chat').close_window()<CR>")
-  vim.api.nvim_command("autocmd FileType ai-chat cnoreabbrev <buffer> q <CMD>lua require('ai-chat').close_window()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " .. M.config.mappings.reset_chat .. " <CMD>lua require('ai-chat').resetChat()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " .. M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " .. M.config.mappings.prev_hunk .. " <CMD>lua require('ai-chat').prev_hunk()<CR>")
+  api.nvim_command("autocmd FileType ai-chat vnoremap <buffer> " .. M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
+  api.nvim_command("autocmd FileType ai-chat vnoremap <buffer> " .. M.config.mappings.prev_hunk .. " <CMD>lua require('ai-chat').prev_hunk()<CR>")
+
+  api.nvim_command("autocmd FileType ai-chat cnoreabbrev <buffer> x <CMD>lua require('ai-chat').close_window()<CR>")
+  api.nvim_command("autocmd FileType ai-chat cnoreabbrev <buffer> q <CMD>lua require('ai-chat').close_window()<CR>")
 end
 
 return M
