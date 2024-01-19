@@ -2,6 +2,19 @@
 
 Flexible way to chat with Copilot AI.
 
+
+https://github.com/z0rzi/ai-chat.nvim/assets/22566633/c0e2f6bf-9cae-4665-82a1-3d53cc58ef70
+
+This plugin is written in LUA for the interface part, and in TypeScript for the communication with copilot.
+
+It is shipped with a typescript runtime (`bun`), and does not have any dependency, so you don't have to worry about installing anything.
+
+## ⚠️ Disclaimer ⚠️
+
+This plugin is a POC more than an actual plugin. It has not been tested, the code is not well commented, and could be improved a lot.
+
+If you wish to contribute, please, do so!
+
 ## Setup
 
 Using lazy:
@@ -13,6 +26,11 @@ Using lazy:
         end,
     },
 ```
+
+You will then have to connect to github using the chat interface, as seen below:
+
+https://github.com/z0rzi/ai-chat.nvim/assets/22566633/0a1e410f-a968-42a7-bf50-0d826f5d471e
+
 
 
 Default configuration:
