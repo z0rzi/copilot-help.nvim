@@ -15,6 +15,7 @@ M.config = {
     prev_hunk = '[[',
     reset_chat = '<C-d>'
   },
+  bun_executable = nil,
 
   files = {
     chat_file = os.getenv("HOME") .. '/.config/ai-chat/chat.md',
@@ -23,21 +24,24 @@ M.config = {
 }
 
 local function script_path()
-  local str = debug.getinfo(2, "S").source:sub(2)
-  return str:match("(.*/)")
+  local script = debug.getinfo(2, "S").source:sub(2)
+  local dir_path = script:match("(.*/)")
+  -- if there is no executable or bun_executable in the config, we will use the shipped bun executable
+  local bun_path = string.format("%s ", vim.fn.exepath("bun") or M.config.bun_executable or "")
+  return string.format("%s%scopilot/index.ts ", bun_path, dir_path)
 end
 
 local function run_copilot_script(args)
   local path = script_path()
 
   if M.gh_device_code ~= nil then
-    local handle = io.popen(path .. "/copilot/index.ts connect " .. M.gh_device_code)
+    local handle = io.popen(path .. "connect " .. M.gh_device_code)
     local result = handle:read("*a")
     handle:close()
     M.gh_device_code = nil
   end
   
-  local handle = io.popen(path .. "/copilot/index.ts " .. args)
+  local handle = io.popen(path .. args)
   local result = handle:read("*a")
   handle:close()
 
@@ -292,7 +296,7 @@ function M.run_macro(start_line, end_line)
   file:close()
 
   local path = script_path()
-  local handle = io.popen(path .. "/copilot/index.ts macro " .. file_path .. " " .. code_file_path)
+  local handle = io.popen(path .. "macro " .. file_path .. " " .. code_file_path)
   local result = handle:read("*a")
   handle:close()
 
