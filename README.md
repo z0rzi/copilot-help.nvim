@@ -7,7 +7,7 @@ https://github.com/z0rzi/ai-chat.nvim/assets/22566633/c0e2f6bf-9cae-4665-82a1-3d
 
 This plugin is written in LUA for the interface part, and in TypeScript for the communication with copilot.
 
-It is shipped with a typescript runtime (`bun`), and does not have any dependency, so you don't have to worry about installing anything.
+It is shipped with a typescript runtime (`bun`) for Linux. For other operating systems, either make sure the `bun` runtime is in your `$PATH` or specify an executable path using `bun_executable` in the config.
 
 ## ⚠️ Disclaimer ⚠️
 
@@ -45,6 +45,7 @@ Default configuration:
     prev_hunk = '[[',
     reset_chat = '<C-d>'
   },
+  bun_executable = nil,
 
   files = {
     chat_file = os.getenv("HOME") .. '/.config/ai-chat/chat.md',
@@ -59,6 +60,8 @@ Keymaps:
 
 - `<LEADER>m` in normal mode to open the chat.
 - `<LEADER>m` in visual mode to send the current text to the chat. All previous messages in the chat will be erased by default.
+- `<LEADER>a` sends the current user message to copilot.
+- `<LEADER>d` clears the prompt.
 
 ## Macros
 
