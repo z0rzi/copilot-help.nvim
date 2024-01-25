@@ -311,11 +311,11 @@ end
 
 function M.next_hunk()
   -- searching for the next '^======' using vim native search
-  vim.fn.search('^======', 'W')
+  vim.fn.search('^# ======', 'W')
 end
 function M.prev_hunk()
   -- searching for the next '^======' using vim native search
-  vim.fn.search('^======', 'bW')
+  vim.fn.search('^# ======', 'bW')
 end
 
 function M.setup(user_opts)
