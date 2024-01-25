@@ -70,12 +70,11 @@ switch (mode) {
     const macro = fs.readFileSync(macroPath, "utf-8");
     const code = fs.readFileSync(codePath, "utf-8");
 
-    copilot.addMessageToConversation('From now on, only the code will be kept from your answer, so if you give additional information, do it in the form of comments in the code itself.\nRemember to always delimit your code with 3 backticks (```).', 'system');
+    copilot.addMessageToConversation('From now on, only the code blocks will be kept from your answer, so if you give additional information, do it in the form of comments in the code itself.\nRemember to always delimit your code with 3 backticks (```).', 'system');
     copilot.addMessageToConversation('Analysed code : ' + '\n' + code + '\n\nInstructions:\n' + macro, 'user');
 
     copilot.ask(macro, code).then((response) => {
       // only keeping the code part of the answer
-      let code = '';
       let codeStarted = false;
 
       for (const line of response.split("\n")) {
@@ -91,6 +90,11 @@ switch (mode) {
         if (codeStarted) {
           console.log(line);
         }
+      }
+
+      if (!codeStarted) {
+        // no code found in the answer... We just print the whole answer
+        console.log(response);
       }
     })
 }

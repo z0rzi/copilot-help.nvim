@@ -2,11 +2,13 @@ local api = vim.api
 
 local M = {
   window = nil,
+  in_current_buffer = false,
   gh_device_code
 }
 
 M.config = {
   mappings = {
+    open_chat_in_current_buffer = '<LEADER>M',
     focus_window = '<LEADER>m',
     selected_to_chat = '<LEADER>m',
     run_macro = '<LEADER>k',
@@ -40,7 +42,7 @@ local function run_copilot_script(args)
     handle:close()
     M.gh_device_code = nil
   end
-  
+
   local handle = io.popen(path .. args)
   local result = handle:read("*a")
   handle:close()
@@ -55,19 +57,32 @@ local function run_copilot_script(args)
     M.gh_device_code = device_code
 
     print("You need to connect to GitHub")
-    result = "Please visit " .. verification_uri .. " and enter " .. user_code .. "\n\nOnce this is done, ask me something!\n"
+    result = "Please visit " ..
+    verification_uri .. " and enter " .. user_code .. "\n\nOnce this is done, ask me something!\n"
   end
 
   return result
 end
 
-function M.open_window()
-  local width = 70
+function M.open_window(in_current_buffer)
+  if M.is_window_open() then
+    M.close_window()
+    return
+  end
 
-  -- Opening new buffer in a split window on the right
-  api.nvim_command('set splitright')
-  api.nvim_command('vsplit')
-  api.nvim_win_set_width(0, width)
+  in_current_buffer = in_current_buffer or false
+
+  M.in_current_buffer = in_current_buffer
+
+  if not in_current_buffer then
+    -- Opening new buffer in a split window on the right
+    local width = 70
+
+    -- Opening new buffer in a split window on the right
+    api.nvim_command('set splitright')
+    api.nvim_command('vsplit')
+    api.nvim_win_set_width(0, width)
+  end
 
   -- Setting window options
   api.nvim_win_set_option(0, 'wrap', true)
@@ -75,13 +90,13 @@ function M.open_window()
   -- Creating buffer
   local buf = api.nvim_create_buf(false, true)
 
-  -- Setting buffer content if it is empty
-  local content = {
-    '============ USER ============',
-    '',
-    ''
-  }
-  if api.nvim_buf_line_count(buf) == 0 then
+  if api.nvim_buf_line_count(buf) <= 3 then
+    -- Setting buffer content if it is empty
+    local content = {
+      '============ USER ============',
+      '',
+      ''
+    }
     api.nvim_buf_set_lines(buf, 0, -1, false, content)
   end
 
@@ -129,6 +144,23 @@ end
 function M.close_window()
   -- saving file
   api.nvim_command("silent!w")
+
+  if M.in_current_buffer then
+    -- if we are in the current buffer, we forget the window ID
+    M.window = nil
+    M.in_current_buffer = false
+
+    -- closing the buffer
+    api.nvim_command("silent!bd")
+
+    return
+  end
+
+  -- if it's the only window, we close vim
+  if #api.nvim_list_wins() == 1 then
+    api.nvim_command("q")
+    return
+  end
 
   api.nvim_win_close(M.window, true)
   M.window = nil
@@ -231,7 +263,7 @@ function M.selection_to_chat(start_line, end_line)
 
   -- removing the old chat
   local buf = api.nvim_get_current_buf()
-  api.nvim_buf_set_lines(buf, 0, -1, false, {''})
+  api.nvim_buf_set_lines(buf, 0, -1, false, { '' })
 
   -- Putting the selected lines at the end of the buffer
   local line_count = api.nvim_buf_line_count(buf)
@@ -313,6 +345,7 @@ function M.next_hunk()
   -- searching for the next '^======' using vim native search
   vim.fn.search('^# ======', 'W')
 end
+
 function M.prev_hunk()
   -- searching for the next '^======' using vim native search
   vim.fn.search('^# ======', 'bW')
@@ -329,6 +362,7 @@ function M.setup(user_opts)
   local opts = { noremap = true }
 
   api.nvim_set_keymap("n", M.config.mappings.focus_window, "<Cmd>lua require('ai-chat').open_chat()<CR>", opts)
+  api.nvim_set_keymap("n", M.config.mappings.open_chat_in_current_buffer, "<Cmd>lua require('ai-chat').open_window(true)<CR><CMD>lua require('ai-chat').open_chat()<CR>", opts)
   api.nvim_set_keymap("v", M.config.mappings.selected_to_chat, ":AiAsk<CR>", opts)
   api.nvim_set_keymap("v", M.config.mappings.run_macro, ":RunMacro<CR>", opts)
   api.nvim_set_keymap("n", M.config.mappings.run_macro, "V:RunMacro<CR>", opts)
@@ -342,11 +376,18 @@ function M.setup(user_opts)
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> <C-a> <CMD>lua require('ai-chat').send_message()<CR>")
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
     M.config.mappings.focus_window .. " <CMD>lua require('ai-chat').close_window()<CR>")
-  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " .. M.config.mappings.reset_chat .. " <CMD>lua require('ai-chat').resetChat()<CR>")
-  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " .. M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
-  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " .. M.config.mappings.prev_hunk .. " <CMD>lua require('ai-chat').prev_hunk()<CR>")
-  api.nvim_command("autocmd FileType ai-chat vnoremap <buffer> " .. M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
-  api.nvim_command("autocmd FileType ai-chat vnoremap <buffer> " .. M.config.mappings.prev_hunk .. " <CMD>lua require('ai-chat').prev_hunk()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
+    M.config.mappings.open_chat_in_current_buffer .. " <CMD>lua require('ai-chat').close_window()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
+  M.config.mappings.reset_chat .. " <CMD>lua require('ai-chat').resetChat()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
+  M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
+  M.config.mappings.prev_hunk .. " <CMD>lua require('ai-chat').prev_hunk()<CR>")
+  api.nvim_command("autocmd FileType ai-chat vnoremap <buffer> " ..
+  M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
+  api.nvim_command("autocmd FileType ai-chat vnoremap <buffer> " ..
+  M.config.mappings.prev_hunk .. " <CMD>lua require('ai-chat').prev_hunk()<CR>")
 
   api.nvim_command("autocmd FileType ai-chat cnoreabbrev <buffer> x <CMD>lua require('ai-chat').close_window()<CR>")
   api.nvim_command("autocmd FileType ai-chat cnoreabbrev <buffer> q <CMD>lua require('ai-chat').close_window()<CR>")
