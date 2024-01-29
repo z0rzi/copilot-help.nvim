@@ -1,0 +1,8 @@
+{
+  "name": "ai-chat-nvim-copilot",
+  "module": "index.ts",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "type": "module"
+}
