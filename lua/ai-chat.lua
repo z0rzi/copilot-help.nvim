@@ -19,9 +19,12 @@ M.config = {
   },
   bun_executable = nil,
 
+  core_instructions = nil,
+
   files = {
     chat_file = os.getenv("HOME") .. '/.config/ai-chat/chat.md',
-    macros_dir = os.getenv("HOME") .. '/.config/ai-chat/macros/'
+    macros_dir = os.getenv("HOME") .. '/.config/ai-chat/macros/',
+    cores_dir = os.getenv("HOME") .. '/.config/ai-chat/cores/'
   }
 }
 
@@ -43,7 +46,14 @@ local function run_copilot_script(args)
     M.gh_device_code = nil
   end
 
-  local handle = io.popen(path .. args)
+  local command = path .. args
+
+  if M.config.core_instructions ~= nil then
+    local core_file = M.config.files.cores_dir .. M.config.core_instructions .. ".md"
+    command = command .. " --core_instruction_file=" .. core_file
+  end
+
+  local handle = io.popen(command)
   local result = handle:read("*a")
   handle:close()
 
@@ -285,7 +295,7 @@ function M.selection_to_chat(start_line, end_line)
   api.nvim_command("startinsert")
 end
 
-function M.resetChat()
+function M.reset_chat()
   local buf = api.nvim_get_current_buf()
   api.nvim_buf_set_lines(buf, 0, -1, false, {
     "# ============ USER ============",
@@ -295,6 +305,60 @@ function M.resetChat()
 
   -- setting cursor at the end of the buffer
   api.nvim_command("normal! G")
+end
+
+
+local function get_available_cores()
+  local cores = vim.fn.glob(M.config.files.cores_dir .. "*.md", true, true)
+  local core_names = {}
+  for _, core in ipairs(cores) do
+    -- Stripping the path and the extension
+    local core_name = string.sub(core, string.len(M.config.files.cores_dir) + 1, -4)
+    table.insert(core_names, core_name)
+  end
+
+  return core_names
+end
+
+function M.change_core(core_name)
+  -- Changes the core instructions of the chat.
+  local core_names = get_available_cores()
+
+  if not vim.tbl_contains(core_names, core_name) then
+    print("Core " .. core_name .. " does not exist")
+    return
+  end
+
+  M.config.core_instructions = core_name
+
+  print("Core changed to " .. core_name .. ". To make this change permanent, add it to the plugin configuration.")
+end
+
+function M.list_cores()
+  -- Lists all of the cores available
+  local core_names = get_available_cores()
+  if #core_names == 0 then
+    print("No cores available")
+    return
+  end
+
+  print("Available cores:")
+  print("- " .. table.concat(core_names, "\n- "))
+end
+
+function M.edit_core(core_name)
+  -- Opening the core in the editor
+  M.focus_window()
+  api.nvim_command('edit ' .. M.config.files.cores_dir .. core_name .. '.md')
+
+  -- Setting buffer options
+  local buf = api.nvim_get_current_buf()
+  api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  api.nvim_buf_set_option(buf, 'swapfile', false)
+  api.nvim_buf_set_option(buf, 'filetype', 'ai-chat')
+
+  -- applying markdown coloring
+  api.nvim_command("runtime! syntax/markdown.vim")
 end
 
 function M.edit_macro()
@@ -356,8 +420,13 @@ function M.setup(user_opts)
 
   -- creating directory if not exists
   os.execute("mkdir -p " .. M.config.files.macros_dir)
+  os.execute("mkdir -p " .. M.config.files.cores_dir)
 
   api.nvim_command("command! AiOpen lua require('ai-chat').focus_window()")
+
+  api.nvim_command("command! -nargs=1 AiCoreEdit lua require('ai-chat').edit_core('<args>')")
+  api.nvim_command("command! -nargs=1 AiCoreSet lua require('ai-chat').change_core('<args>')")
+  api.nvim_command("command! AiCoreList lua require('ai-chat').list_cores()")
 
   local opts = { noremap = true }
 
@@ -379,7 +448,7 @@ function M.setup(user_opts)
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
     M.config.mappings.open_chat_in_current_buffer .. " <CMD>lua require('ai-chat').close_window()<CR>")
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
-  M.config.mappings.reset_chat .. " <CMD>lua require('ai-chat').resetChat()<CR>")
+  M.config.mappings.reset_chat .. " <CMD>lua require('ai-chat').reset_chat()<CR>")
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
   M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..

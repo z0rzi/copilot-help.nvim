@@ -5,19 +5,47 @@ import fs from "fs";
 import CopilotSession from "./copilot";
 import { checkGithubAuth } from "./github-utils";
 
-const mode = process.argv[2];
+let mode: string | null = null;
+let args = [] as string[];
+let coreInstruction = "";
+
+const allArgs = process.argv.slice(2);
+while (allArgs.length > 0) {
+  const arg = allArgs.shift();
+  if (!arg) break;
+
+  if (arg.startsWith("--")) {
+    if (arg.startsWith("--core_instruction_file")) {
+      const [_, coreInstructionFile] = arg.split("=");
+
+      if (fs.existsSync(coreInstructionFile)) {
+        coreInstruction = fs.readFileSync(coreInstructionFile, "utf-8");
+      }
+    }
+    continue;
+  }
+
+  if (mode === null) {
+    mode = arg;
+  } else {
+    args.push(arg);
+  }
+}
 
 let copilot: CopilotSession;
 
 switch (mode) {
   case "connect":
-    const deviceCode = process.argv[3];
+    const deviceCode = args[0];
     await checkGithubAuth(deviceCode.trim())
     break;
   case "chat":
     copilot = new CopilotSession();
+    if (coreInstruction) {
+      copilot.coreInstructions = coreInstruction;
+    }
     const rawConversation = fs.readFileSync(
-      process.argv[3],
+      args[0],
       "utf-8"
     );
 
@@ -51,16 +79,20 @@ switch (mode) {
     }
 
     if (messageLines.length > 0) {
-      copilot.ask(messageLines.join("\n")).then((response) => {
+      const lastMessage = messageLines.join("\n");
+      copilot.ask(lastMessage).then((response) => {
         console.log(response);
       });
     }
     break;
   case "macro":
     copilot = new CopilotSession();
+    if (coreInstruction) {
+      copilot.coreInstructions = coreInstruction;
+    }
 
-    const macroPath = process.argv[3];
-    const codePath = process.argv[4];
+    const macroPath = args[0];
+    const codePath = args[1];
 
     if (!fs.existsSync(macroPath)) {
       console.log(`This macro does not exist...`);

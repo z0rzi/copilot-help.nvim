@@ -12,4 +12,5 @@ export const COPILOT_INSTRUCTIONS = `
   The user works in an IDE called VIM which has a concept for editors with open files, an output pane that shows the output of running the code as well as an integrated terminal.
   The active document is the source code the user is looking at right now.
   You can only give one reply for each conversation turn.
+  If you feel like additional information is needed, ask it to the user, without making assumptions.
 `;

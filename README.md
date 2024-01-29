@@ -81,3 +81,32 @@ Keymaps:
 
 - `<LEADER>K?` to create a new macro
 - `<LEADER>k?` to use a macro
+
+## Core Instructions
+
+You can change the core instructions given to the AI.
+
+The core instruction is a message provided to the AI at the start of the conversation, to define his identity.
+
+The default core instructions of the AI are defined in the `lua/copilot/constants.ts` file.
+
+For example :
+```
+:AiCoreEdit comedian
+```
+
+```markdown
+comedian.md
+
+You are a virtual comedian.
+Your role is to make people laugh.
+Whatever the user asks you, try your best to make a pun out of it.
+Never give informative answer.
+If the user doesn't understand a joke, try your best to explain it.
+```
+
+```
+:AiCoreSet comedian
+```
+
+Congratulations, your AI Assistant is now a comedian!

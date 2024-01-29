@@ -1,3 +1,4 @@
+import { COPILOT_INSTRUCTIONS } from "./constants";
 import { githubAuthenticate } from "./github-utils";
 import { Message } from "./utils";
 import Utils from "./utils";
@@ -12,6 +13,8 @@ export default class CopilotSession {
   vscode_sessionid: string | null = null;
   token: { token: string } | null = null;
   machineid: string = Math.floor(Math.random() * 100000000000).toString(16);
+
+  coreInstructions: string = COPILOT_INSTRUCTIONS;
 
   chatHistory: Message[] = [];
 
@@ -122,7 +125,7 @@ export default class CopilotSession {
   async ask(
     prompt: string,
     code?: string,
-    language: string = ""
+    language: string = "",
   ): Promise<string> {
     await this.ready;
 
@@ -151,7 +154,7 @@ export default class CopilotSession {
       role: "user",
     });
 
-    const data = Utils.generateRequest(this.chatHistory, code, language);
+    const data = Utils.generateRequest(this.chatHistory, code, language, this.coreInstructions);
 
     let rawMessage = "";
     const response = await fetch(url, {

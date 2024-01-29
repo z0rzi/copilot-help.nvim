@@ -1,8 +1,6 @@
 import fs from "fs";
 import path from "path";
 
-import { COPILOT_INSTRUCTIONS } from "./constants";
-
 const CACHE_PATH = path.join(process.env.HOME || "~", ".config", ".copilot");
 
 export type Message = {
@@ -17,7 +15,6 @@ function getRandomUuidv4(): string {
     return v.toString(16);
   });
 }
-
 
 function getCache() {
   if (!fs.existsSync(CACHE_PATH)) {
@@ -67,10 +64,11 @@ function getCachedToken(login?: string): string | null {
 function generateRequest(
   chatHistory: Message[],
   analyzedCode?: string,
-  language?: string
+  language?: string,
+  instructions?: string
 ) {
   const messages: Message[] = [
-    { content: COPILOT_INSTRUCTIONS, role: "system" },
+    { content: instructions ?? '', role: "system" },
   ];
   for (const message of chatHistory) {
     messages.push({ ...message });
