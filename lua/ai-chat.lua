@@ -17,6 +17,7 @@ M.config = {
     prev_hunk = '[[',
     next_core = '}}',
     prev_core = '{{',
+    send_message = '<C-a>',
     reset_chat = '<C-d>'
   },
   bun_executable = nil,
@@ -548,7 +549,8 @@ function M.setup(user_opts)
   api.nvim_command("command! -range AiMacroEdit lua require('ai-chat').edit_macro()")
 
   -- setting maps specific to the ai-chat buffer using autocmd
-  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> <C-a> <CMD>lua require('ai-chat').send_message()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
+  M.config.mappings.send_message .. " <CMD>lua require('ai-chat').send_message()<CR>")
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
     M.config.mappings.focus_window .. " <CMD>lua require('ai-chat').close_window()<CR>")
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
