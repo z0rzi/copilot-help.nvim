@@ -3,7 +3,7 @@ local api = vim.api
 local M = {
   window = nil,
   in_current_buffer = false,
-  gh_device_code
+  gh_device_code = nil
 }
 
 M.config = {
@@ -15,11 +15,13 @@ M.config = {
     edit_macro = '<LEADER>K',
     next_hunk = ']]',
     prev_hunk = '[[',
+    next_core = '}}',
+    prev_core = '{{',
     reset_chat = '<C-d>'
   },
   bun_executable = nil,
 
-  core_instructions = nil,
+  core_instructions = 'code',
 
   files = {
     chat_file = os.getenv("HOME") .. '/.config/ai-chat/chat.md',
@@ -28,12 +30,26 @@ M.config = {
   }
 }
 
+local function get_plugin_path()
+  local path = debug.getinfo(1, "S").source:sub(2)
+  return path:match("(.*/)")
+end
+
 local function script_path()
-  local script = debug.getinfo(2, "S").source:sub(2)
-  local dir_path = script:match("(.*/)")
+  local dir_path = get_plugin_path()
   -- if there is no executable or bun_executable in the config, we will use the shipped bun executable
   local bun_path = string.format("%s ", vim.fn.exepath("bun") or M.config.bun_executable or "")
   return string.format("%s%scopilot/index.ts ", bun_path, dir_path)
+end
+
+local function copy_file(source, destination)
+  local handle = io.open(source, "r")
+  local content = handle:read("*a")
+  handle:close()
+
+  handle = io.open(destination, "w+")
+  handle:write(content)
+  handle:close()
 end
 
 local function run_copilot_script(args)
@@ -68,7 +84,7 @@ local function run_copilot_script(args)
 
     print("You need to connect to GitHub")
     result = "Please visit " ..
-    verification_uri .. " and enter " .. user_code .. "\n\nOnce this is done, ask me something!\n"
+        verification_uri .. " and enter " .. user_code .. "\n\nOnce this is done, ask me something!\n"
   end
 
   return result
@@ -307,7 +323,6 @@ function M.reset_chat()
   api.nvim_command("normal! G")
 end
 
-
 local function get_available_cores()
   local cores = vim.fn.glob(M.config.files.cores_dir .. "*.md", true, true)
   local core_names = {}
@@ -318,6 +333,21 @@ local function get_available_cores()
   end
 
   return core_names
+end
+
+local function get_default_cores()
+  local plugin_dir = get_plugin_path()
+  local default_cores_dir = plugin_dir .. "/default-core-instructions/"
+  local default_cores_paths = vim.fn.glob(default_cores_dir .. "*.md", true, true)
+
+  local default_cores = {}
+  for _, core in ipairs(default_cores_paths) do
+    -- Stripping the path and the extension
+    local name = string.sub(core, string.len(default_cores_dir) + 1, -4)
+    table.insert(default_cores, name)
+  end
+
+  return default_cores
 end
 
 function M.change_core(core_name)
@@ -359,6 +389,79 @@ function M.edit_core(core_name)
 
   -- applying markdown coloring
   api.nvim_command("runtime! syntax/markdown.vim")
+end
+
+function M.next_core()
+  -- Changes the core instructions of the chat.
+  local core_names = get_available_cores()
+  local current_core = M.config.core_instructions
+
+  if current_core == nil then
+    print("No core selected")
+    return
+  end
+
+  local current_core_index = vim.fn.index(core_names, current_core)
+  local next_core_index = ((current_core_index + 1) % #core_names)
+  local next_core = core_names[next_core_index + 1]
+
+  print("Changing core to " .. next_core)
+  M.config.core_instructions = next_core
+end
+
+function M.prev_core()
+  -- Changes the core instructions of the chat.
+  local core_names = get_available_cores()
+  local current_core = M.config.core_instructions
+
+  if current_core == nil then
+    print("No core selected")
+    return
+  end
+
+  local current_core_index = vim.fn.index(core_names, current_core)
+  local prev_core_index = ((current_core_index - 1 + #core_names) % #core_names)
+  local prev_core = core_names[prev_core_index + 1]
+
+  print("Changing core to " .. prev_core)
+  M.config.core_instructions = prev_core
+end
+
+-- Resets the specified core to the default one.
+-- If no default core exists for the specified name, nothing happens.
+function M.reset_core_to_default(core_name)
+  -- finding all the available default cores
+  local default_cores = get_default_cores()
+
+  -- if there is no default core for the specified name, we do nothing
+  if not vim.tbl_contains(default_cores, core_name) then
+    return
+  end
+
+  -- copying the default core to the cores directory, overwriting the existing one
+  local plugin_dir = get_plugin_path()
+  local default_core_path = plugin_dir .. "/default-core-instructions/" .. core_name .. ".md"
+  local core_path = M.config.files.cores_dir .. core_name .. ".md"
+
+  copy_file(default_core_path, core_path)
+end
+
+-- Makes sure that all the default cores are present in the cores directory.
+-- If not, copies them from the plugin directory.
+local function verify_default_core_exist()
+  local default_cores = get_default_cores()
+
+  for _, core_name in ipairs(default_cores) do
+    -- if there is no default core for the specified name, we do nothing
+    local core_path = M.config.files.cores_dir .. core_name .. ".md"
+    if vim.fn.filereadable(core_path) == 0 then
+      -- copying the default core to the cores directory, overwriting the existing one
+      local plugin_dir = get_plugin_path()
+      local default_core_path = plugin_dir .. "/default-core-instructions/" .. core_name .. ".md"
+
+      copy_file(default_core_path, core_path)
+    end
+  end
 end
 
 function M.edit_macro()
@@ -418,6 +521,8 @@ end
 function M.setup(user_opts)
   M.config = vim.tbl_extend("force", M.config, user_opts or {})
 
+  verify_default_core_exist()
+
   -- creating directory if not exists
   os.execute("mkdir -p " .. M.config.files.macros_dir)
   os.execute("mkdir -p " .. M.config.files.cores_dir)
@@ -431,7 +536,8 @@ function M.setup(user_opts)
   local opts = { noremap = true }
 
   api.nvim_set_keymap("n", M.config.mappings.focus_window, "<Cmd>lua require('ai-chat').open_chat()<CR>", opts)
-  api.nvim_set_keymap("n", M.config.mappings.open_chat_in_current_buffer, "<Cmd>lua require('ai-chat').open_window(true)<CR><CMD>lua require('ai-chat').open_chat()<CR>", opts)
+  api.nvim_set_keymap("n", M.config.mappings.open_chat_in_current_buffer,
+    "<Cmd>lua require('ai-chat').open_window(true)<CR><CMD>lua require('ai-chat').open_chat()<CR>", opts)
   api.nvim_set_keymap("v", M.config.mappings.selected_to_chat, ":AiAsk<CR>", opts)
   api.nvim_set_keymap("v", M.config.mappings.run_macro, ":RunMacro<CR>", opts)
   api.nvim_set_keymap("n", M.config.mappings.run_macro, "V:RunMacro<CR>", opts)
@@ -448,15 +554,19 @@ function M.setup(user_opts)
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
     M.config.mappings.open_chat_in_current_buffer .. " <CMD>lua require('ai-chat').close_window()<CR>")
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
-  M.config.mappings.reset_chat .. " <CMD>lua require('ai-chat').reset_chat()<CR>")
+    M.config.mappings.reset_chat .. " <CMD>lua require('ai-chat').reset_chat()<CR>")
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
-  M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
+    M.config.mappings.next_core .. " <CMD>lua require('ai-chat').next_core()<CR>")
   api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
-  M.config.mappings.prev_hunk .. " <CMD>lua require('ai-chat').prev_hunk()<CR>")
+    M.config.mappings.prev_core .. " <CMD>lua require('ai-chat').prev_core()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
+    M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
+  api.nvim_command("autocmd FileType ai-chat nnoremap <buffer> " ..
+    M.config.mappings.prev_hunk .. " <CMD>lua require('ai-chat').prev_hunk()<CR>")
   api.nvim_command("autocmd FileType ai-chat vnoremap <buffer> " ..
-  M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
+    M.config.mappings.next_hunk .. " <CMD>lua require('ai-chat').next_hunk()<CR>")
   api.nvim_command("autocmd FileType ai-chat vnoremap <buffer> " ..
-  M.config.mappings.prev_hunk .. " <CMD>lua require('ai-chat').prev_hunk()<CR>")
+    M.config.mappings.prev_hunk .. " <CMD>lua require('ai-chat').prev_hunk()<CR>")
 
   api.nvim_command("autocmd FileType ai-chat cnoreabbrev <buffer> x <CMD>lua require('ai-chat').close_window()<CR>")
   api.nvim_command("autocmd FileType ai-chat cnoreabbrev <buffer> q <CMD>lua require('ai-chat').close_window()<CR>")

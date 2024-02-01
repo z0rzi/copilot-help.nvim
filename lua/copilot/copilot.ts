@@ -1,4 +1,3 @@
-import { COPILOT_INSTRUCTIONS } from "./constants";
 import { githubAuthenticate } from "./github-utils";
 import { Message } from "./utils";
 import Utils from "./utils";
@@ -14,7 +13,7 @@ export default class CopilotSession {
   token: { token: string } | null = null;
   machineid: string = Math.floor(Math.random() * 100000000000).toString(16);
 
-  coreInstructions: string = COPILOT_INSTRUCTIONS;
+  coreInstructions: string = '';
 
   chatHistory: Message[] = [];
 
