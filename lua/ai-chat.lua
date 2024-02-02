@@ -522,11 +522,11 @@ end
 function M.setup(user_opts)
   M.config = vim.tbl_extend("force", M.config, user_opts or {})
 
-  verify_default_core_exist()
-
   -- creating directory if not exists
   os.execute("mkdir -p " .. M.config.files.macros_dir)
   os.execute("mkdir -p " .. M.config.files.cores_dir)
+
+  verify_default_core_exist()
 
   api.nvim_command("command! AiOpen lua require('ai-chat').focus_window()")
 
