@@ -156,7 +156,9 @@ To change the current core, you can also use the `}}` and `{{` mappings in the c
 
 ## TODO
 
+- Adding place-holders in cores for language currently used
 - Possibility to specify the core to use for each macro
+- Changing how full-screen works: use `ctrl`+`M` to toggle between fullscreen and windowed
 - Automatically fix the spaces between messages in the chat
 - Refactor the lua code in different files
 - Comment the code
