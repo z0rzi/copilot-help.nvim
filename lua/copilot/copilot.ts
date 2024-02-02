@@ -62,6 +62,11 @@ export default class CopilotSession {
     const response = await fetch(url, {
       method: "GET",
       headers,
+    }).catch((err) => {
+      console.log("There was a problem when trying to authenticate to GitHub:\n");
+      console.log(err);
+      console.log("\n\nMake sure you're connected to the internet.");
+      process.exit(1);
     });
 
     this.token = (await response.json()) as CopilotToken;
@@ -76,6 +81,14 @@ export default class CopilotSession {
       }
 
       let parsedLine = null as null | {
+        error?: {
+          "agent-version": string;
+          details: string;
+          "editor-plugin-version": string;
+          "editor-version": string;
+          engine: string;
+          message: string;
+        };
         choices: {
           finish_reason: string;
           index: number;
@@ -102,6 +115,16 @@ export default class CopilotSession {
           fullResponse += responseContent;
         }
       } catch (err) {
+        if (parsedLine["error"]) {
+          let errorLines = [] as string[];
+          if ("message" in parsedLine["error"]) {
+            errorLines.push(parsedLine["error"]["message"]);
+          }
+          if ("details" in parsedLine["error"]) {
+            errorLines.push(parsedLine["error"]["details"]);
+          }
+          return errorLines.join("\n\n");
+        }
         continue;
       }
     }
@@ -109,7 +132,7 @@ export default class CopilotSession {
     return fullResponse;
   }
 
-  addMessageToConversation(message: string, role: 'user' | 'system'): void {
+  addMessageToConversation(message: string, role: "user" | "system"): void {
     this.chatHistory.push({
       content: message,
       role,
@@ -124,12 +147,11 @@ export default class CopilotSession {
   async ask(
     prompt: string,
     code?: string,
-    language: string = "",
+    language: string = ""
   ): Promise<string> {
     await this.ready;
 
-    const url =
-      "https://copilot-proxy.githubusercontent.com/v1/chat/completions";
+    const url = "https://api.githubcopilot.com/chat/completions";
 
     if (this.token == null) {
       throw new Error("Not authenticated");
@@ -153,7 +175,12 @@ export default class CopilotSession {
       role: "user",
     });
 
-    const data = Utils.generateRequest(this.chatHistory, code, language, this.coreInstructions);
+    const data = Utils.generateRequest(
+      this.chatHistory,
+      code,
+      language,
+      this.coreInstructions
+    );
 
     let rawMessage = "";
     const response = await fetch(url, {

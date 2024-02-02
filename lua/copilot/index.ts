@@ -82,6 +82,8 @@ switch (mode) {
       const lastMessage = messageLines.join("\n");
       copilot.ask(lastMessage).then((response) => {
         console.log(response);
+      }).catch((error) => {
+        console.log('Error : ' + error.message);
       });
     }
     break;
