@@ -152,9 +152,12 @@ If the user doesn't understand a joke, try your best to explain it.
 
 Congratulations, your AI Assistant is now a comedian!
 
+To change the current core, you can also use the `}}` and `{{` mappings in the chat window.
 
 ## TODO
 
 - Possibility to specify the core to use for each macro
+- Automatically fix the spaces between messages in the chat
+- Refactor the lua code in different files
 - Comment the code
 - Write tests
