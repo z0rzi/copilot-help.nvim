@@ -37,17 +37,14 @@ let copilot: CopilotSession;
 switch (mode) {
   case "connect":
     const deviceCode = args[0];
-    await checkGithubAuth(deviceCode.trim())
+    await checkGithubAuth(deviceCode.trim());
     break;
   case "chat":
     copilot = new CopilotSession();
     if (coreInstruction) {
       copilot.coreInstructions = coreInstruction;
     }
-    const rawConversation = fs.readFileSync(
-      args[0],
-      "utf-8"
-    );
+    const rawConversation = fs.readFileSync(args[0], "utf-8");
 
     const lines = rawConversation.split("\n");
 
@@ -80,18 +77,34 @@ switch (mode) {
 
     if (messageLines.length > 0) {
       const lastMessage = messageLines.join("\n");
-      copilot.ask(lastMessage).then((response) => {
-        console.log(response);
-      }).catch((error) => {
-        console.log('Error : ' + error.message);
-      });
+      copilot
+        .ask(lastMessage)
+        .then((response) => {
+          console.log(response);
+        })
+        .catch((error) => {
+          console.log("Error : " + error.message);
+        });
     }
     break;
   case "macro":
     copilot = new CopilotSession();
     if (coreInstruction) {
-      copilot.coreInstructions = coreInstruction;
+      // copilot.coreInstructions = coreInstruction;
     }
+
+    let instructions = '';
+    instructions +=
+      "Whatever I said before, the following rules have a higher priority, and should be respected no matter what. If you do not respect the following rules, your answer will be discarded.\n";
+    instructions +=
+      "We are now in 'replace mode', meaning that the snippet provided by the user is to be replaced by your answer.\n";
+    instructions +=
+      "Your answer will be pasted as-is in the code editor of the user, for this reason, it is VERY IMPORTANT that you ONLY answer with the relevant piece of information. Be as concise as possible.\n";
+    instructions +=
+      "If you give code, make sure that the original snippet can be replaced by your code without any modification.\n";
+    instructions +=
+      "Do not provide explanations about your answer, only the answer itself.\n";
+    instructions += "\n\n";
 
     const macroPath = args[0];
     const codePath = args[1];
@@ -104,31 +117,34 @@ switch (mode) {
     const macro = fs.readFileSync(macroPath, "utf-8");
     const code = fs.readFileSync(codePath, "utf-8");
 
-    copilot.addMessageToConversation('From now on, only the code blocks will be kept from your answer, so if you give additional information, do it in the form of comments in the code itself.\nRemember to always delimit your code with 3 backticks (```).', 'system');
-    copilot.addMessageToConversation('Analysed code : ' + '\n' + code + '\n\nInstructions:\n' + macro, 'user');
+    copilot.addMessageToConversation(instructions, 'system');
+    copilot.addMessageToConversation(
+      "Snippet to replace : \n```\n" + code + "\n```",
+      "user"
+    );
 
-    copilot.ask(macro, code).then((response) => {
-      // only keeping the code part of the answer
-      let codeStarted = false;
-
-      for (const line of response.split("\n")) {
-        if (line.startsWith("```")) {
-          if (!codeStarted) {
-            codeStarted = true;
-            continue;
-          } 
-          // code ended
-          process.exit(0);
+    copilot.ask(macro).then((response) => {
+        // only keeping the code part of the answer
+        let codeStarted = false;
+      
+        for (const line of response.split("\n")) {
+          if (line.startsWith("```")) {
+            if (!codeStarted) {
+              codeStarted = true;
+              continue;
+            }
+            // code ended
+            process.exit(0);
+          }
+      
+          if (codeStarted) {
+            console.log(line);
+          }
         }
-
-        if (codeStarted) {
-          console.log(line);
+      
+        if (!codeStarted) {
+          // no code found in the answer... We just print the whole answer
+          console.log(response);
         }
-      }
-
-      if (!codeStarted) {
-        // no code found in the answer... We just print the whole answer
-        console.log(response);
-      }
-    })
+    });
 }

@@ -56,15 +56,12 @@ function getCachedToken(login?: string): string | null {
  * Creates the prompt containing the chat history and the code if provided.
  *
  * @param chatHistory The chat history to send to the API.
- * @param analyzedCode The code to send to the API.
- * @param language The language of the code.
+ * @param instructions The instructions defining the AI core identity
  *
  * @returns The request to send to the API.
  */
 function generateRequest(
   chatHistory: Message[],
-  analyzedCode?: string,
-  language?: string,
   instructions?: string
 ) {
   const messages: Message[] = [
@@ -73,15 +70,6 @@ function generateRequest(
   for (const message of chatHistory) {
     messages.push({ ...message });
   }
-  if (!!analyzedCode) {
-    messages.push({
-      content: `\nActive selection:\n\`\`\`${
-        language || ""
-      }\n${analyzedCode}\n\`\`\``,
-      role: "system",
-    });
-  }
-
   return {
     intent: true,
     model: "copilot-chat",

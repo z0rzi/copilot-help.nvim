@@ -13,7 +13,7 @@ export default class CopilotSession {
   token: { token: string } | null = null;
   machineid: string = Math.floor(Math.random() * 100000000000).toString(16);
 
-  coreInstructions: string = '';
+  coreInstructions: string = "";
 
   chatHistory: Message[] = [];
 
@@ -63,7 +63,9 @@ export default class CopilotSession {
       method: "GET",
       headers,
     }).catch((err) => {
-      console.log("There was a problem when trying to authenticate to GitHub:\n");
+      console.log(
+        "There was a problem when trying to authenticate to GitHub:\n"
+      );
       console.log(err);
       console.log("\n\nMake sure you're connected to the internet.");
       process.exit(1);
@@ -141,14 +143,8 @@ export default class CopilotSession {
 
   /**
    * @param prompt The prompt to send to the AI
-   * @param code The code you're working on
-   * @param language The language of the code
    */
-  async ask(
-    prompt: string,
-    code?: string,
-    language: string = ""
-  ): Promise<string> {
+  async ask(prompt: string): Promise<string> {
     await this.ready;
 
     const url = "https://api.githubcopilot.com/chat/completions";
@@ -177,8 +173,6 @@ export default class CopilotSession {
 
     const data = Utils.generateRequest(
       this.chatHistory,
-      code,
-      language,
       this.coreInstructions
     );
 

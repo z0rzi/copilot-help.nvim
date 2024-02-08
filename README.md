@@ -11,9 +11,11 @@ It is shipped with a typescript runtime (`bun`) for Linux. For other operating s
 
 ## ⚠️ Disclaimer ⚠️
 
-This plugin is a POC more than an actual plugin. It has not been tested, the code is not well commented, and could be improved a lot.
+This plugin is a work in progress. There might be bugs here and there.
 
-If you wish to contribute, please, do so!
+If you notice any problems, or if you have any feature idea, open an issue.
+
+If you feel like contributing, all PRs are welcome!
 
 ## Setup
 
@@ -44,6 +46,9 @@ Default configuration:
     -- Opens the chat in the side window
     focus_window = '<LEADER>m',
 
+    -- Toggles the fullscreen mode of the chat
+    toggle_fullscreen = '<LEADER>M',
+
     -- Sends the selected text to the chat, and starts insert mode
     selected_to_chat = '<LEADER>m',
 
@@ -52,9 +57,6 @@ Default configuration:
 
     -- Prompts the user for a character, edit the macro
     edit_macro = '<LEADER>K',
-
-    -- Opens the chat in full-screen in the current buffer instead of opening it in the side window
-    open_chat_in_current_buffer = '<LEADER>M',
 
 
     ---------------------
@@ -82,6 +84,13 @@ Default configuration:
   -- The core instructions to load at startup
   core_instructions = 'code',
 
+  -- If true, the chat window will replace the current buffer.
+  -- Otherwise, it will open in a vertical split.
+  fullscreen = true,
+
+  -- If true, the previous messages will be forgotten when sending the current selection to the chat
+  reset_chat_on_selection_send = true,
+
   files = {
     -- The place where the current chat is saved
     chat_file = os.getenv("HOME") .. '/.config/ai-chat/chat.md',
@@ -102,7 +111,7 @@ Keymaps:
 - `<LEADER>m` in normal mode to open the chat.
 - `<LEADER>m` in visual mode to send the current text to the chat. All previous messages in the chat will be erased by default.
 - `<LEADER>a` sends the current user message to copilot.
-- `<LEADER>d` clears the prompt.
+- `<LEADER>d` clears the conversation
 
 ## Macros
 
@@ -158,8 +167,6 @@ To change the current core, you can also use the `}}` and `{{` mappings in the c
 
 - Adding place-holders in cores for language currently used
 - Possibility to specify the core to use for each macro
-- Changing how full-screen works: use `ctrl`+`M` to toggle between fullscreen and windowed
 - Automatically fix the spaces between messages in the chat
-- Refactor the lua code in different files
-- Comment the code
+- Add the currently used core next to the 'AI' for each message
 - Write tests
