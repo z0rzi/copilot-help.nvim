@@ -48,7 +48,7 @@ local config = {
 
     -- If true, the chat window will replace the current buffer.
     -- Otherwise, it will open in a vertical split.
-    fullscreen = true,
+    fullscreen = false,
 
     -- If true, the previous messages will be forgotten when sending the current selection to the chat
     reset_chat_on_selection_send = true,

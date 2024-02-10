@@ -65,7 +65,7 @@ end
 -- Open the core file in the chat window.
 -- If the core file doesn't exist yet, it creates a new one.
 function M.edit_core(core_name)
-  M.focus_window()
+  window.focus_window()
   api.nvim_command('edit ' .. config.default.files.cores_dir .. core_name .. '.md')
 
   -- Setting buffer options
