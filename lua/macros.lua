@@ -34,6 +34,9 @@ end
 
 -- Runs the macro with the given name on the currently selected text.
 function M.run_macro(start_line, end_line)
+  start_line = vim.fn.nextnonblank(start_line)
+  end_line = vim.fn.prevnonblank(end_line)
+
   local macro_name = vim.fn.nr2char(vim.fn.getchar())
 
   local file_path = config.default.files.macros_dir .. macro_name .. '.md'
@@ -59,13 +62,15 @@ function M.run_macro(start_line, end_line)
 
   local result = utils.run_copilot_script("macro " .. file_path .. " " .. code_file_path)
 
-  -- removing the old selection
-  api.nvim_command("normal! gvd")
-
-  -- inserting the result
+  -- inserting the result in the buffer
   local lines = vim.split(result, "\n")
-  local current_line = vim.fn.line(".")
-  api.nvim_buf_set_lines(0, current_line - 1, current_line - 1, false, lines)
+
+  -- if last line is empty, we remove it
+  if lines[#lines] == "" then
+    table.remove(lines, #lines)
+  end
+
+  api.nvim_buf_set_lines(0, start_line - 1, end_line, false, lines)
 end
 
 return M
